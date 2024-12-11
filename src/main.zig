@@ -1,7 +1,7 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const c = @cImport({
-    @cInclude("libyaml.h");
+    @cInclude("./libyaml.h");
 });
 
 const YamlEvents = enum(c_int) {
