@@ -335,6 +335,7 @@ pub fn YamlParser(comptime T: type) type {
             }
 
             var documents = std.ArrayList(DeserializedYaml(T)).init(self.alloc);
+            defer documents.deinit();
 
             // Loop over the documents
             for (self.documents.items) |document| {
@@ -342,16 +343,15 @@ pub fn YamlParser(comptime T: type) type {
                     break;
                 }
 
+                var arena = std.heap.ArenaAllocator.init(self.parent_alloc);
+
                 // Setup the return value
                 var deserialized = DeserializedYaml(T){
-                    .arena = try self.parent_alloc.create(std.heap.ArenaAllocator),
+                    .arena = &arena,
                     .value = undefined,
                     .messages = undefined,
                 };
 
-                // Setup return value memory management
-                errdefer self.parent_alloc.destroy(deserialized.arena);
-                deserialized.arena.* = std.heap.ArenaAllocator.init(self.parent_alloc);
                 errdefer deserialized.arena.deinit();
 
                 // Walk the internal structure and hydrate the userland structure
@@ -363,10 +363,11 @@ pub fn YamlParser(comptime T: type) type {
                 try documents.append(deserialized);
             }
 
-            return documents.items[document_index];
+            const docs = try documents.toOwnedSlice();
+            return docs[document_index];
         }
 
-        pub fn parse_document_range(self: *Self, bytes: []u8, start_index: usize, end_index: usize) !DeserializedYaml(T) {
+        pub fn parse_document_range(self: *Self, bytes: []u8, start_index: usize, end_index: usize) ![]DeserializedYaml(T) {
 
             // Set a limit on the number of documents parsed for VERY large yaml files
             self.document_limit = end_index;
@@ -392,16 +393,15 @@ pub fn YamlParser(comptime T: type) type {
                     break;
                 }
 
+                var arena = std.heap.ArenaAllocator.init(self.parent_alloc);
+
                 // Setup the return value
                 var deserialized = DeserializedYaml(T){
-                    .arena = try self.parent_alloc.create(std.heap.ArenaAllocator),
+                    .arena = &arena,
                     .value = undefined,
                     .messages = undefined,
                 };
 
-                // Setup return value memory management
-                errdefer self.parent_alloc.destroy(deserialized.arena);
-                deserialized.arena.* = std.heap.ArenaAllocator.init(self.parent_alloc);
                 errdefer deserialized.arena.deinit();
 
                 // Walk the internal structure and hydrate the userland structure
@@ -413,7 +413,8 @@ pub fn YamlParser(comptime T: type) type {
                 try documents.append(deserialized);
             }
 
-            return documents.items[start_index..end_index];
+            const docs = try documents.toOwnedSlice();
+            return docs[start_index..end_index];
         }
 
         pub fn deserialize(self: *Self, bytes: []u8) !void {
@@ -618,6 +619,44 @@ pub fn YamlParser(comptime T: type) type {
 
 pub fn yaml_parser(ret: anytype) !YamlParser(ret) {
     return .{};
+}
+
+test "simple_yaml parse_document_n" {
+    const dat = struct {
+        name: []u8 = undefined,
+    };
+
+    const alloc = std.testing.allocator;
+
+    // Setup the parser
+    var parser = try yaml_parser(dat);
+    try parser.init(alloc);
+    defer parser.deinit();
+
+    var parsed = try parser.parse_document_n(@constCast("name: hello world"), 0);
+    defer parsed.deinit();
+
+    try std.testing.expectEqualSlices(u8, "hello world", parsed.value.name);
+}
+
+test "simple_yaml parse_document_range" {
+    const dat = struct {
+        name: []u8 = undefined,
+    };
+
+    const alloc = std.testing.allocator;
+
+    // Setup the parser
+    var parser = try yaml_parser(dat);
+    try parser.init(alloc);
+    defer parser.deinit();
+
+    var parsed = try parser.parse_document_range(@constCast("name: hello world"), 0, 1);
+    for (0..parsed.len) |p| {
+        defer parsed[p].deinit();
+    }
+
+    try std.testing.expectEqualSlices(u8, "hello world", parsed[0].value.name);
 }
 
 fn WalkDeserializeToStruct(comptime T: type) type {
