@@ -4,6 +4,8 @@ This project is a bit of a playground to get a better understanding of how to us
 
 Feel free to fork and open issues but I am not promising that anything will get fixed.
 
+**This is very much MVP to suit my specific use case.**
+
 ## Why Did I Make this?
 
 Simple... JSON is way too much typing.
