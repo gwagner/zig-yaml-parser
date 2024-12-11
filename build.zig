@@ -6,28 +6,16 @@ const test_targets = [_]std.Target.Query{
 
 pub fn build(b: *std.Build) !void {
     const optimize = b.standardOptimizeOption(.{});
-    const exe = b.addExecutable(.{
+    const lib = b.addStaticLibrary(.{
         .name = "yaml-parser",
         .root_source_file = b.path("src/main.zig"),
         .target = b.host,
         .optimize = optimize,
     });
 
-    exe.addIncludePath(b.path("src/"));
-    exe.linkSystemLibrary("yaml");
-    exe.linkLibC();
+    lib.addIncludePath(b.path("src/"));
+    lib.linkSystemLibrary("yaml");
+    lib.linkLibC();
 
-    b.installArtifact(exe);
-    // const test_step = b.step("test", "Run unit tests");
-    //
-    // for (test_targets) |target| {
-    //     const unit_tests = b.addTest(.{
-    //         .root_source_file = b.path("src/main.zig"),
-    //         .target = b.resolveTargetQuery(target),
-    //     });
-    //
-    //     const run_unit_tests = b.addRunArtifact(unit_tests);
-    //     run_unit_tests.has_side_effects = true;
-    //     test_step.dependOn(&run_unit_tests.step);
-    // }
+    b.installArtifact(lib);
 }
