@@ -16,7 +16,7 @@ Would JSON have been easier?  Probably.
 
 ## How to use
 
-** This requires a build of Zig 0.14.  Current stable 0.13.x will not work due to changes in the typing system for @typeInfo()**
+**This requires a build of Zig 0.14.  Current stable 0.13.x will not work due to changes in the typing system for @typeInfo()**
 
 First run: `zig fetch --save=yaml-parser https://github.com/gwagner/zig-yaml-parser/archive/refs/heads/main.zip`
 
