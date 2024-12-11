@@ -187,7 +187,7 @@ const YamlNode = struct {
 
 pub fn DeserializedYaml(comptime T: type) type {
     return struct {
-        arena: *std.heap.ArenaAllocator,
+        arena: std.heap.ArenaAllocator,
         value: T,
         messages: std.ArrayList([]u8),
 
@@ -343,11 +343,11 @@ pub fn YamlParser(comptime T: type) type {
                     break;
                 }
 
-                var arena = std.heap.ArenaAllocator.init(self.parent_alloc);
+                const arena = std.heap.ArenaAllocator.init(self.parent_alloc);
 
                 // Setup the return value
                 var deserialized = DeserializedYaml(T){
-                    .arena = &arena,
+                    .arena = arena,
                     .value = undefined,
                     .messages = undefined,
                 };
@@ -393,11 +393,11 @@ pub fn YamlParser(comptime T: type) type {
                     break;
                 }
 
-                var arena = std.heap.ArenaAllocator.init(self.parent_alloc);
+                const arena = std.heap.ArenaAllocator.init(self.parent_alloc);
 
                 // Setup the return value
                 var deserialized = DeserializedYaml(T){
-                    .arena = &arena,
+                    .arena = arena,
                     .value = undefined,
                     .messages = undefined,
                 };
