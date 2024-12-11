@@ -1,0 +1,14 @@
+.{
+    // the name of your project
+    .name = "zig-yaml-parser",
+    // the version of your project
+    .version = "0.0.1",
+
+    .minimum_zig_version = "0.14.0",
+
+    .paths = .{
+        "src",
+        "build.zig",
+        "build.zig.zon",
+    },
+}
