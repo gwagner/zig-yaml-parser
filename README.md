@@ -4,8 +4,15 @@ This project is a bit of a playground to get a better understanding of how to us
 
 Feel free to fork and open issues but I am not promising that anything will get fixed.
 
-## How to use
+## Why Did I Make this?
 
+Simple... JSON is way too much typing.
+
+I have done a fair amount of GoLang in my career which has led me to using the `go generate` pattern quite a bit.  I would love to use the same pattern in Zig, but i dont want to define everything in JSON just to satisfy the stdlib.
+
+Would JSON have been easier?  Probably.
+
+## How to use
 
 First run: `zig fetch --save=yaml-parser https://github.com/gwagner/zig-yaml-parser/archive/refs/heads/main.zip`
 
