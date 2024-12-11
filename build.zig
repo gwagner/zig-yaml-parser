@@ -13,6 +13,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
+    exe.addIncludePath(b.path("src/"));
     exe.linkSystemLibrary("yaml");
     exe.linkLibC();
 
