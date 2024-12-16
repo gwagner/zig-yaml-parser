@@ -445,13 +445,13 @@ pub fn YamlParser(comptime T: type) type {
 
             // Loop until we run out of data
             while (true) {
-                defer c.yaml_event_delete(&event);
 
                 // An event is an ecapsulation of what the parser found as it was scanning the tokens in the YAML input
                 const event_code = c.yaml_parser_parse(&parser, &event);
                 if (event_code != 1) {
                     return error.ParseError;
                 }
+                defer c.yaml_event_delete(&event);
 
                 switch (@as(YamlEvents, @enumFromInt(event.type))) {
                     // Noop, keep moving
@@ -473,35 +473,32 @@ pub fn YamlParser(comptime T: type) type {
                     },
                     // I would assume that this is an event for multiple yaml documents in a single stream
                     .YAML_DOCUMENT_START_EVENT => {
-                        // Only create a new document if we need one?  This is probably a useless check
-                        if (self.current_document_index + 1 > self.documents.items.len) {
-                            // Create a new document
-                            var doc = try self.alloc.create(YamlNode);
-                            doc.key = undefined;
-                            doc.nodes = std.ArrayList(*YamlNode).init(self.alloc);
-                            doc.node_type = .DOCUMENT;
-                            doc.parent = null;
-                            try doc.set_key(self.alloc, @as([]u8, @constCast("Document")));
+                        // Create a new document
+                        var doc = try self.alloc.create(YamlNode);
+                        doc.key = undefined;
+                        doc.nodes = std.ArrayList(*YamlNode).init(self.alloc);
+                        doc.node_type = .DOCUMENT;
+                        doc.parent = null;
+                        try doc.set_key(self.alloc, @as([]u8, @constCast("Document")));
 
-                            // Append that document to the list
-                            try self.documents.append(doc);
+                        // Append that document to the list
+                        try self.documents.append(doc);
 
-                            // Set the current node
-                            self.current_node = doc;
+                        // Set the current node
+                        self.current_node = doc;
 
-                            //std.log.info("Got Event DOCUMENT_START Code: {d}", .{event.type});
-                        }
                         continue;
                     },
 
                     // Finished a document, ready to start the next document
                     .YAML_DOCUMENT_END_EVENT => {
-                        // Increment the index so that we can step into the next document
-                        self.current_document_index += 1;
-
-                        if (self.current_document_index > self.document_limit) {
+                        // If the limit has been reached, break the loop and move on
+                        if (self.current_document_index == self.document_limit) {
                             break;
                         }
+
+                        // Increment the index so that we can step into the next document
+                        self.current_document_index += 1;
 
                         //std.log.info("Got Event DOCUMENT_END Code: {d}", .{event.type});
                         continue;
@@ -637,6 +634,26 @@ test "simple_yaml parse_document_n" {
     defer parsed.deinit();
 
     try std.testing.expectEqualSlices(u8, "hello world", parsed.value.name);
+}
+
+test "simple_yaml2 parse_document_n" {
+    const dat = struct {
+        name: []u8 = undefined,
+        is_yaml_awesome: bool = undefined,
+    };
+
+    const alloc = std.testing.allocator;
+
+    // Setup the parser
+    var parser = try yaml_parser(dat);
+    try parser.init(alloc);
+    defer parser.deinit();
+
+    var parsed = try parser.parse_document_n(@constCast("name: hello world\nis_yaml_awesome: true"), 0);
+    defer parsed.deinit();
+
+    try std.testing.expectEqualSlices(u8, "hello world", parsed.value.name);
+    try std.testing.expectEqual(true, parsed.value.is_yaml_awesome);
 }
 
 test "simple_yaml parse_document_range" {
