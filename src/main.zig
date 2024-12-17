@@ -218,8 +218,9 @@ fn PrintWithPadding(comptime T: type) type {
         value: T,
 
         const Self = @This();
+        const Error = (std.fmt.BufPrintError || std.mem.Allocator.Error);
 
-        pub fn print(self: *Self) !void {
+        pub fn print(self: *Self) Error!void {
             var padding = try self.alloc.alloc(u8, self.depth);
             @memset(padding[0..self.depth], 0x20);
 
@@ -674,6 +675,8 @@ test "simple_yaml parse_document_range" {
     }
 
     try std.testing.expectEqualSlices(u8, "hello world", parsed[0].value.name);
+
+    try parsed[0].print();
 }
 
 fn WalkDeserializeToStruct(comptime T: type) type {
