@@ -735,23 +735,15 @@ fn WalkDeserializeToStruct(comptime T: type) type {
 
                             // Deal with concrete types once we have no more children
                             if (!self.node.hasChildren()) {
-                                switch (self.node.node_type) {
-                                    // "STRING" types need to be dealt with here since they are pointers not really concrete types
-                                    .STRING => {
-                                        if (T != []u8) {
-                                            try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @typeName(T), getLineNumber() }));
-                                            return error.UnexpectedPointerType;
-                                        }
-
-                                        return (self.node.value orelse try self.alloc.alloc(u8, 0));
-                                    },
-                                    else => |e| {
-                                        try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @tagName(e), getLineNumber() }));
-                                        return error.UnexpectedPointerType;
-                                    },
+                                if (T != []u8) {
+                                    try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @typeName(T), getLineNumber() }));
+                                    return error.UnexpectedPointerType;
                                 }
+
+                                return (self.node.value orelse try self.alloc.alloc(u8, 0));
                             }
 
+                            // Otherwise we have children and we need to deal with them normally
                             var arr = std.ArrayList(p.child).init(self.alloc);
                             for (self.node.nodes.items) |n| {
                                 var next = try walk_and_deserialize_to_struct(self.alloc, n, p.child);
