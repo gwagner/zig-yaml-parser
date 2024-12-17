@@ -684,8 +684,9 @@ fn WalkDeserializeToStruct(comptime T: type) type {
         messages: std.ArrayList([]u8),
 
         const Self = @This();
+        const Error = (error{UnexpectedPointerType} || std.fmt.ParseIntError || std.fmt.ParseFloatError || std.mem.Allocator.Error);
 
-        pub fn walk(self: *Self) !T {
+        pub fn walk(self: *Self) Error!T {
             switch (@typeInfo(T)) {
                 .array => |_| {
                     unreachable;
