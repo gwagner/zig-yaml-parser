@@ -2,6 +2,8 @@
 
 This project is a bit of a playground to get a better understanding of how to use Zig's reflection system.
 
+For more information, you can checkout the project [here](https://www.valewood.org/i-wrote-a-zig-yaml-parser/)
+
 Feel free to fork and open issues but I am not promising that anything will get fixed.
 
 **This is very much MVP to suit my specific use case.**
