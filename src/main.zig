@@ -740,7 +740,7 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                             // Deal with concrete types once we have no more children
                             if (!self.node.hasChildren()) {
                                 if (T != []u8) {
-                                    try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @typeName(T), getLineNumber() }));
+                                    try self.messages.append(self.alloc, try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @typeName(T), getLineNumber() }));
                                     return error.UnexpectedPointerType;
                                 }
 
@@ -759,7 +759,7 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                             return try arr.toOwnedSlice(self.alloc);
                         },
                         else => |e| {
-                            try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @tagName(e), getLineNumber() }));
+                            try self.messages.append(self.alloc, try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @tagName(e), getLineNumber() }));
                             return error.UnexpectedPointerType;
                         },
                     }
