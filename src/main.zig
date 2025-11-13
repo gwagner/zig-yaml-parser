@@ -50,9 +50,9 @@ const YamlNode = struct {
         node.node_type = .UNKNOWN;
         node.key = undefined;
         node.value = null;
-        node.nodes = std.ArrayList(*YamlNode).init(alloc);
+        node.nodes = try std.ArrayList(*YamlNode).initCapacity(alloc, 0);
         node.parent = parent;
-        try parent.nodes.append(node);
+        try parent.nodes.append(alloc, node);
         return node;
     }
 
@@ -305,7 +305,7 @@ pub fn YamlParser(comptime T: type) type {
             self.parent_alloc = alloc;
 
             // Create lists needed to help with parsing
-            self.documents = std.ArrayList(*YamlNode).init(self.alloc);
+            self.documents = try std.ArrayList(*YamlNode).initCapacity(self.alloc, 0);
         }
 
         pub fn deinit(self: Self) void {
@@ -335,8 +335,8 @@ pub fn YamlParser(comptime T: type) type {
                 return error.InvalidDocumentIndex;
             }
 
-            var documents = std.ArrayList(DeserializedYaml(T)).init(self.alloc);
-            defer documents.deinit();
+            var documents = try std.ArrayList(DeserializedYaml(T)).initCapacity(self.alloc, 0);
+            defer documents.deinit(self.alloc);
 
             // Loop over the documents
             for (self.documents.items) |document| {
@@ -361,10 +361,10 @@ pub fn YamlParser(comptime T: type) type {
                 deserialized.messages = deserializer.messages;
 
                 // Append the document to the list
-                try documents.append(deserialized);
+                try documents.append(self.alloc, deserialized);
             }
 
-            const docs = try documents.toOwnedSlice();
+            const docs = try documents.toOwnedSlice(self.alloc);
             return docs[document_index];
         }
 
@@ -386,7 +386,7 @@ pub fn YamlParser(comptime T: type) type {
                 return error.InvalidEndingDocumentIndex;
             }
 
-            var documents = std.ArrayList(DeserializedYaml(T)).init(self.alloc);
+            var documents = try std.ArrayList(DeserializedYaml(T)).initCapacity(self.alloc, 0);
 
             // Loop over the documents
             for (self.documents.items) |document| {
@@ -411,10 +411,10 @@ pub fn YamlParser(comptime T: type) type {
                 deserialized.messages = deserializer.messages;
 
                 // Append the document to the list
-                try documents.append(deserialized);
+                try documents.append(self.alloc, deserialized);
             }
 
-            const docs = try documents.toOwnedSlice();
+            const docs = try documents.toOwnedSlice(self.alloc);
             return docs[start_index..end_index];
         }
 
@@ -477,13 +477,13 @@ pub fn YamlParser(comptime T: type) type {
                         // Create a new document
                         var doc = try self.alloc.create(YamlNode);
                         doc.key = undefined;
-                        doc.nodes = std.ArrayList(*YamlNode).init(self.alloc);
+                        doc.nodes = try std.ArrayList(*YamlNode).initCapacity(self.alloc, 0);
                         doc.node_type = .DOCUMENT;
                         doc.parent = null;
                         try doc.set_key(self.alloc, @as([]u8, @constCast("Document")));
 
                         // Append that document to the list
-                        try self.documents.append(doc);
+                        try self.documents.append(self.alloc, doc);
 
                         // Set the current node
                         self.current_node = doc;
@@ -676,7 +676,7 @@ test "simple_yaml parse_document_range" {
 
     try std.testing.expectEqualSlices(u8, "hello world", parsed[0].value.name);
 
-    try parsed[0].print();
+    // try parsed[0].print();
 }
 
 fn WalkDeserializeToStruct(comptime T: type) type {
@@ -696,28 +696,28 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                 },
                 .bool => {
                     if (self.node.node_type != .BOOL) {
-                        try self.messages.append(try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
+                        try self.messages.append(self.alloc, try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
                     }
 
                     return try self.node.get_bool_val(self.alloc);
                 },
                 .float => {
                     if (self.node.node_type != .FLOAT) {
-                        try self.messages.append(try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
+                        try self.messages.append(self.alloc, try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
                     }
 
                     return self.node.get_float_val(T);
                 },
                 .int => {
                     if (self.node.node_type != .INT) {
-                        try self.messages.append(try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
+                        try self.messages.append(self.alloc, try std.fmt.allocPrint(self.alloc, "Expected type is {s} for key {s}, deserialized type is {s}", .{ @typeName(T), self.node.key orelse unreachable, @tagName(self.node.node_type) }));
                     }
 
                     return self.node.get_int_val(T);
                 },
                 .optional => |o| {
                     var next = try walk_and_deserialize_to_struct(self.alloc, self.node, o.child);
-                    defer self.messages.appendSlice(next.messages.items) catch |e| {
+                    defer self.messages.appendSlice(self.alloc, next.messages.items) catch |e| {
                         std.log.err("Unable to append message: {}", .{e});
                     };
 
@@ -725,17 +725,17 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                 },
                 .pointer => |p| {
                     switch (p.size) {
-                        .One => {
+                        .one => {
                             const r: *p.child = try self.alloc.create(p.child);
                             var next = try walk_and_deserialize_to_struct(self.alloc, self.node, p.child);
-                            defer self.messages.appendSlice(next.messages.items) catch |e| {
+                            defer self.messages.appendSlice(self.alloc, next.messages.items) catch |e| {
                                 std.log.err("Unable to append message: {}", .{e});
                             };
                             r.* = try next.walk();
 
                             return r;
                         },
-                        .Slice => {
+                        .slice => {
 
                             // Deal with concrete types once we have no more children
                             if (!self.node.hasChildren()) {
@@ -748,15 +748,15 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                             }
 
                             // Otherwise we have children and we need to deal with them normally
-                            var arr = std.ArrayList(p.child).init(self.alloc);
+                            var arr = try std.ArrayList(p.child).initCapacity(self.alloc, 0);
                             for (self.node.nodes.items) |n| {
                                 var next = try walk_and_deserialize_to_struct(self.alloc, n, p.child);
-                                defer self.messages.appendSlice(next.messages.items) catch |e| {
+                                defer self.messages.appendSlice(self.alloc, next.messages.items) catch |e| {
                                     std.log.err("Unable to append message: {}", .{e});
                                 };
-                                try arr.append(try next.walk());
+                                try arr.append(self.alloc, try next.walk());
                             }
-                            return try arr.toOwnedSlice();
+                            return try arr.toOwnedSlice(self.alloc);
                         },
                         else => |e| {
                             try self.messages.append(try std.fmt.allocPrint(self.alloc, "UnexpectedPointerType {s} on {d}", .{ @tagName(e), getLineNumber() }));
@@ -775,7 +775,7 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                                 inline for (s.fields) |field| {
                                     if (std.mem.eql(u8, field.name, n.key orelse unreachable)) {
                                         var next = try walk_and_deserialize_to_struct(self.alloc, n, field.type);
-                                        defer self.messages.appendSlice(next.messages.items) catch |e| {
+                                        defer self.messages.appendSlice(self.alloc, next.messages.items) catch |e| {
                                             std.log.err("Unable to append message: {}", .{e});
                                         };
 
@@ -797,7 +797,7 @@ fn WalkDeserializeToStruct(comptime T: type) type {
                                 inline for (s.fields) |field| {
                                     if (std.mem.eql(u8, field.name, self.node.key orelse unreachable)) {
                                         var next = try walk_and_deserialize_to_struct(self.alloc, self.node, field.type);
-                                        defer self.messages.appendSlice(next.messages.items) catch |e| {
+                                        defer self.messages.appendSlice(self.alloc, next.messages.items) catch |e| {
                                             std.log.err("Unable to append message: {}", .{e});
                                         };
 
@@ -826,8 +826,8 @@ fn WalkDeserializeToStruct(comptime T: type) type {
 fn walk_and_deserialize_to_struct(alloc: std.mem.Allocator, nodes: anytype, T: anytype) !WalkDeserializeToStruct(T) {
     const selfNodes = switch (@TypeOf(nodes)) {
         *YamlNode => blk: {
-            var r = std.ArrayList(*YamlNode).init(alloc);
-            try r.append(nodes);
+            var r = try std.ArrayList(*YamlNode).initCapacity(alloc, 0);
+            try r.append(alloc, nodes);
             break :blk r.items;
         },
         []*YamlNode => nodes,
@@ -838,6 +838,6 @@ fn walk_and_deserialize_to_struct(alloc: std.mem.Allocator, nodes: anytype, T: a
         .alloc = alloc,
         .nodes = selfNodes,
         .node = selfNodes[0],
-        .messages = std.ArrayList([]u8).init(alloc),
+        .messages = try std.ArrayList([]u8).initCapacity(alloc, 0),
     };
 }

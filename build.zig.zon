@@ -1,6 +1,9 @@
 .{
     // the name of your project
-    .name = "zig-yaml-parser",
+    .name = .zig_yaml_parser,
+
+    .fingerprint = 0x73abe6fe4e5fc545,
+
     // the version of your project
     .version = "0.0.1",
 
